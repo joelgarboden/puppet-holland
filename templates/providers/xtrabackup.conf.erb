@@ -5,95 +5,43 @@
 
 [xtrabackup]
 
-## Override the path where we can find mysql command line utilities
-#mysql-binpath       = /usr/bin/xtrabackup
-<% if @mysql_binpath -%>
-mysql-binpath       = <%= @mysql_binpath %>
-<% end -%>
+## Whether to generate a streaming backup.
+## For xtrabackup version 8.0 or greater, 'xbstream' will be used unless
+## this value is set to 'no'
+stream                 = <%= @stream %>
 
-## One of: flush-lock, lock-tables, single-transaction, auto-detect, none
-##
-## flush-lock will place a global lock on all tables involved in the backup
-## regardless of whether or not they are in the backup-set. If
-## file-per-database is enabled, then flush-lock will lock all tables
-## for every database being backed up. In other words, this option may not
-## make much sense when using file-per-database.
-##
-## lock-tables will lock all tables involved in the backup. If
-## file-per-database is enabled, then lock-tables will only lock all the
-## tables associated with that database.
-##
-## single-transaction will force running a backup within a transaction.
-## This allows backing up of transactional tables without imposing a lock
-## howerver will NOT properly backup non-transacitonal tables.
-##
-## Auto-detect will choose single-transaction unless Holland finds
-## non-transactional tables in the backup-set.
-##
-## None will completely disable locking. This is generally only viable
-## on a MySQL slave and only after traffic has been diverted, or slave
-## services suspended.
-lock-method         = <%= @lock_method %>
+## Whether to run innobackupex `--apply-logs` at the end of the backup.
+## This is only supported when performing a non-streaming, non-compressed
+## backup. In this case, even if `apply-logs = yes` (the default), the
+## prepare stage will be skipped. Even with an uncompressed, non-streaming
+## backup you may want to disable apply-logs if you wish to use incremental
+## backups.
+apply-logs             = <%= @apply_logs %>
 
-## comma-delimited glob patterns for matching databases
-## only databases matching these patterns will be backed up
-## default: include everything
-#databases           = "*"
-<% if @databases -%>
-databases           = "<%= @databases %>"
-<% end -%>
+## Whether to enable the `-–slave-info` innobackupex option
+slave-info             = <%= @slave_info %>
 
-## comma-delimited glob patterns to exclude particular
-## databases
-#exclude-databases   =
-<% if @exclude_databases -%>
-exclude-databases   = <%= @exclude_databases %>
-<% end -%>
+## Whether to enable the `--safe-slave-backup` innobackupex option.
+safe-slave-backup      = <%= @safe_slave_backup %>
 
-## only include the specified tables
-#tables              = "*"
-<% if @tables -%>
-tables              = "<%= @tables %>"
-<% end -%>
-
-## exclude specific tables
-#exclude-tables      = ""
-<% if @exclude_tables -%>
-exclude-tables              = "<%= @exclude_tables %>"
-<% end -%>
-
-## Whether to dump routines explicitly
-## (routines are implicitly included in the mysql database)
-dump-routines       = <%= @dump_routines %>
-
-## Whether to dump events explicitly.
-## Note that this feature requires MySQL 5.1 or later.
-dump-events			= <%= @dump_events %>
-
-## Whether to stop the slave before commencing with the backup
-stop-slave          = <%= @stop_slave %>
-
-## Whether to record the binary log name and position at the time of the
-## backup.
-bin-log-position    = <%= @bin_log_position %>
-
-## Whether or not to run FLUSH LOGS in MySQL with the backup. When FLUSH
-## LOGS is actually executed depends on which if database filtering is being
-## used and whether or not file-per-database is enabled. Generally speaking,
-## it does not make sense to use flush-logs with file-per-database since the
-## binary logs will not be consistent with the backup.
-flush-logs          = <%= @flush_logs %>
-
-## Whether to run a separate xtrabackup for each database. Note that while
-## this may initially sound like a good idea, it is far simpler to backup
-## all databases in one file, although that makes the restore process
-## more difficult when only certain data needs to be restored.
-file-per-database   = <%= @file_per_database %>
+## Whether to enable the `--no-lock` innobackupex option
+no-lock                = <%= @no_lock %>
 
 ## any additional options to the 'xtrabackup' command-line utility
 ## these should show up exactly as they are on the command line
-## e.g.: --flush-privileges --reset-master
+## e.g.: --parallel=4 --throttle=150
+<% if @additional_options -%>
 additional-options  = "<%= @additional_options %>"
+<% end -%>
+
+## A command to run prior to running this xtrabackup run. This
+## can be used, for instance, to generate a mysqldump schema
+## dump prior to running xtrabackup. instances of ${backup_directory}
+## will be replaced with the current holland backup directory where
+## the xtrabackup data will be stored.
+<% if @pre_command -%>
+pre-command            = <%= @pre_command %>
+<% end -%>
 
 ## Compression Settings
 [compression]
@@ -127,8 +75,22 @@ level               = <%= @compress_level %>
 ##
 #bin-path           = /usr/bin/gzip
 <% if @compress_bin_path -%>
-bin-path           = <%= @compress_bin_path %>
+bin-path            = <%= @compress_bin_path %>
 <% end -%>
+
+## Add commandline options to the configuration compression command.
+##
+#options = "-Q4"
+<% if @compress_options -%>
+options           = <%= @compress_options %>
+<% end -%>
+
+## Defautls to no. If set the backup will be piped through the split command.
+## This may be useful for user’s with large databases, as some backup systems
+## perform better with many smaller files instead of 1 large one. This 
+## defaults to 1GB file size, so this option isn’t helpful if your dumps are 
+## smaller than that.
+split             = <%= @compress_split %>
 
 ## MySQL connection settings. Note that Holland will try to read from
 ## the provided files defined in the 'defaults-extra-file', although
